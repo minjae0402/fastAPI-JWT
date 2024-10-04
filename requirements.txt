@@ -3,4 +3,5 @@ uvicorn
 python-jose[cryptography]
 requests
 python-dotenv
+PyJWT
 # pip install -r requirements.txt

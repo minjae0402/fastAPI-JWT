@@ -9,7 +9,7 @@ router = APIRouter()
 @router.get('/auth/google')
 def google_login():
     return RedirectResponse(
-        url=f'https://accounts.google.com/o/oauth2/v2/auth?client_id={settings.google_client_id}&redirect_uri=http://localhost:8000/auth/google/callback&response_type=code&scope=openid email profile'
+        url=f'https://accounts.google.com/o/oauth2/v2/auth?client_id={settings.google_client_id}&redirect_uri=https://auth.calibes.com/auth/google/callback&response_type=code&scope=openid email profile'
     )
 
 @router.get('/auth/google/callback')
@@ -19,7 +19,7 @@ def google_callback(code: str):
         'code': code,
         'client_id': settings.google_client_id,
         'client_secret': settings.google_client_secret,
-        'redirect_uri': 'http://localhost:8000/auth/google/callback',
+        'redirect_uri': 'https://auth.calibes.com/auth/google/callback',
         'grant_type': 'authorization_code'
     }
     
@@ -41,14 +41,14 @@ def google_callback(code: str):
 
         user_info = user_info_response.json()
         jwt_token = AuthJWT().create_access_token(subject=user_info['email'])
-        return RedirectResponse(url=f'http://localhost:7000/success?token={jwt_token}')
+        return RedirectResponse(url=f'https://web.calibes.com/success?token={jwt_token}')
     
     raise HTTPException(status_code=400, detail="Failed")
 
 @router.get('/auth/naver')
 def naver_login():
     return RedirectResponse(
-        url=f'https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id={settings.naver_client_id}&redirect_uri=http://localhost:8000/auth/naver/callback'
+        url=f'https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id={settings.naver_client_id}&redirect_uri=https://auth.calibes.com/auth/naver/callback'
     )
 
 @router.get('/auth/naver/callback')
@@ -59,7 +59,7 @@ def naver_callback(code: str):
         'client_secret': settings.naver_client_secret,
         'grant_type': 'authorization_code',
         'code': code,
-        'redirect_uri': 'http://localhost:8000/auth/naver/callback'
+        'redirect_uri': 'https://auth.calibes.com/auth/naver/callback'
     }
     
     response = requests.get(token_url, params=token_data)
@@ -83,7 +83,7 @@ def naver_callback(code: str):
         # JWT 토큰 생성
         jwt_token = AuthJWT().create_access_token(subject=user_info['response']['email'])
         # 원하는 URL로 리디렉션
-        return RedirectResponse(url=f'http://localhost:7000/success?token={jwt_token}')
+        return RedirectResponse(url=f'https://wev.calibes.com/success?token={jwt_token}')
     
     raise HTTPException(status_code=400, detail="Failed")
 
