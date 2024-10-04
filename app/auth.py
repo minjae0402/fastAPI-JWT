@@ -1,23 +1,26 @@
-from fastapi import WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
-
-# 기존 코드에서 필요한 모듈을 import합니다.
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import RedirectResponse
 from fastapi_jwt_auth import AuthJWT
 import requests
 import asyncio
 from .config import settings
 
+router = APIRouter()
+
 # 웹소켓 서버 주소
 WEBSOCKET_URL = "ws://localhost:7777"
 
-router = APIRouter()
-
 async def send_email_to_websocket(email: str):
+    # 웹소켓 서버에 이메일 전송
     async with WebSocket.connect(WEBSOCKET_URL) as websocket:
         await websocket.send(email)
         print(f"Email sent to WebSocket: {email}")
+
+@router.get('/auth/google')
+def google_login():
+    return RedirectResponse(
+        url=f'https://accounts.google.com/o/oauth2/v2/auth?client_id={settings.google_client_id}&redirect_uri=https://auth.calibes.com/auth/google/callback&response_type=code&scope=openid email profile'
+    )
 
 @router.get('/auth/google/callback')
 async def google_callback(code: str):
@@ -57,6 +60,12 @@ async def google_callback(code: str):
     
     raise HTTPException(status_code=400, detail="Failed")
 
+@router.get('/auth/naver')
+def naver_login():
+    return RedirectResponse(
+        url=f'https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id={settings.naver_client_id}&redirect_uri=https://auth.calibes.com/auth/naver/callback'
+    )
+
 @router.get('/auth/naver/callback')
 async def naver_callback(code: str):
     token_url = 'https://nid.naver.com/oauth2.0/token'
@@ -95,3 +104,21 @@ async def naver_callback(code: str):
         return RedirectResponse(url=f'https://web.calibes.com/success?token={jwt_token}')
     
     raise HTTPException(status_code=400, detail="Failed")
+
+@router.get('/auth/userinfo')
+def user_info(Authorize: AuthJWT = Depends()):
+    try:
+        Authorize.jwt_required()
+    except:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    current_user = Authorize.get_jwt_subject()
+    return {"email": current_user}
+
+@router.get('/auth/logout')
+def logout(Authorize: AuthJWT = Depends()):
+    try:
+        Authorize.jwt_required()
+        return {"msg": "Logged out successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=401, detail="Invalid token")
