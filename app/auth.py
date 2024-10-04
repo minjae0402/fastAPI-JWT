@@ -2,19 +2,9 @@ from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import RedirectResponse
 from fastapi_jwt_auth import AuthJWT
 import requests
-import asyncio
 from .config import settings
 
 router = APIRouter()
-
-# 웹소켓 서버 주소
-WEBSOCKET_URL = "ws://localhost:7777"
-
-async def send_email_to_websocket(email: str):
-    # 웹소켓 서버에 이메일 전송
-    async with WebSocket.connect(WEBSOCKET_URL) as websocket:
-        await websocket.send(email)
-        print(f"Email sent to WebSocket: {email}")
 
 @router.get('/auth/google')
 def google_login():
@@ -23,7 +13,7 @@ def google_login():
     )
 
 @router.get('/auth/google/callback')
-async def google_callback(code: str):
+def google_callback(code: str):
     token_url = 'https://oauth2.googleapis.com/token'
     token_data = {
         'code': code,
@@ -32,14 +22,14 @@ async def google_callback(code: str):
         'redirect_uri': 'https://auth.calibes.com/auth/google/callback',
         'grant_type': 'authorization_code'
     }
-
+    
     response = requests.post(token_url, data=token_data)
     if response.status_code != 200:
         raise HTTPException(status_code=response.status_code, detail="Failed Google")
     
     token_response = response.json()
     access_token = token_response.get('access_token')
-
+    
     if access_token:
         user_info_response = requests.get(
             'https://www.googleapis.com/oauth2/v2/userinfo',
@@ -50,12 +40,11 @@ async def google_callback(code: str):
             raise HTTPException(status_code=user_info_response.status_code, detail="Failed Google")
 
         user_info = user_info_response.json()
-        email = user_info['email']  # 이메일 가져오기
-        jwt_token = AuthJWT().create_access_token(subject=email)
-        
-        # 이메일을 웹소켓 서버로 전송
-        asyncio.create_task(send_email_to_websocket(email))
-        
+        # JWT 토큰 생성 시 사용자 이름과 프로필 사진을 포함
+        jwt_token = AuthJWT().create_access_token(subject=user_info['email'], additional_claims={
+            "name": user_info.get('name'), 
+            "picture": user_info.get('picture')
+        })
         return RedirectResponse(url=f'https://web.calibes.com/success?token={jwt_token}')
     
     raise HTTPException(status_code=400, detail="Failed")
@@ -67,7 +56,7 @@ def naver_login():
     )
 
 @router.get('/auth/naver/callback')
-async def naver_callback(code: str):
+def naver_callback(code: str):
     token_url = 'https://nid.naver.com/oauth2.0/token'
     token_data = {
         'client_id': settings.naver_client_id,
@@ -78,13 +67,13 @@ async def naver_callback(code: str):
     }
     
     response = requests.get(token_url, params=token_data)
-
+    
     if response.status_code != 200:
         raise HTTPException(status_code=response.status_code, detail="Failed Naver")
     
     token_response = response.json()
     access_token = token_response.get('access_token')
-
+    
     if access_token:
         user_info_response = requests.get(
             'https://openapi.naver.com/v1/nid/me',
@@ -95,12 +84,11 @@ async def naver_callback(code: str):
             raise HTTPException(status_code=user_info_response.status_code, detail="Failed Naver")
         
         user_info = user_info_response.json()
-        email = user_info['response']['email']  # 이메일 가져오기
-        jwt_token = AuthJWT().create_access_token(subject=email)
-
-        # 이메일을 웹소켓 서버로 전송
-        asyncio.create_task(send_email_to_websocket(email))
-
+        # JWT 토큰 생성 시 사용자 이름과 프로필 사진을 포함
+        jwt_token = AuthJWT().create_access_token(subject=user_info['response']['email'], additional_claims={
+            "name": user_info['response'].get('name'), 
+            "picture": user_info['response'].get('profile_image')
+        })
         return RedirectResponse(url=f'https://web.calibes.com/success?token={jwt_token}')
     
     raise HTTPException(status_code=400, detail="Failed")
@@ -113,7 +101,13 @@ def user_info(Authorize: AuthJWT = Depends()):
         raise HTTPException(status_code=401, detail="Invalid token")
 
     current_user = Authorize.get_jwt_subject()
-    return {"email": current_user}
+    additional_claims = Authorize.get_raw_jwt()  # JWT의 추가 클레임 가져오기
+
+    return {
+        "email": current_user,
+        "name": additional_claims.get("name"),  # 추가된 사용자 이름
+        "picture": additional_claims.get("picture")  # 추가된 프로필 사진
+    }
 
 @router.get('/auth/logout')
 def logout(Authorize: AuthJWT = Depends()):
