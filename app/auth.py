@@ -45,6 +45,7 @@ def google_callback(code: str):
     
     raise HTTPException(status_code=400, detail="Failed")
 
+
 @router.get('/auth/naver')
 def naver_login():
     return RedirectResponse(
@@ -80,9 +81,7 @@ def naver_callback(code: str):
             raise HTTPException(status_code=user_info_response.status_code, detail="Failed Naver")
         
         user_info = user_info_response.json()
-        # JWT 토큰 생성
         jwt_token = AuthJWT().create_access_token(subject=user_info['response']['email'])
-        # 원하는 URL로 리디렉션
         return RedirectResponse(url=f'https://web.calibes.com/success?token={jwt_token}')
     
     raise HTTPException(status_code=400, detail="Failed")
