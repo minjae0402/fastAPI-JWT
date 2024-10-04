@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+python-jose[cryptography]
+requests
+python-dotenv
+# pip install -r requirements.txt
