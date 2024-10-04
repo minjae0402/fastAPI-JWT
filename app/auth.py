@@ -83,7 +83,7 @@ def naver_callback(code: str):
         # JWT 토큰 생성
         jwt_token = AuthJWT().create_access_token(subject=user_info['response']['email'])
         # 원하는 URL로 리디렉션
-        return RedirectResponse(url=f'https://wev.calibes.com/success?token={jwt_token}')
+        return RedirectResponse(url=f'https://web.calibes.com/success?token={jwt_token}')
     
     raise HTTPException(status_code=400, detail="Failed")
 
